@@ -22,7 +22,7 @@ Aplikasi web based + PWA untuk personal cash tracker dengan cash in, cash out, b
 ## What is implemented (2026-08-17)
 - KasFlow dark organic FinTech dashboard with responsive mobile layout
 - Transaction CRUD/list APIs and evidence upload endpoint
-- Excel .xlsx export, filters, totals, toasts, modal form, and PWA manifest
+- Excel .xlsx export with Petty Cash Report template: title, period, reported by, six columns, opening balance, totals, balance, styled cells, filters, toasts, modal form, and PWA manifest
 - No AI integration yet by design; form-first MVP
 
 ## Prioritized backlog
@@ -33,5 +33,5 @@ P2: Add optional authentication and multi-device sync
 
 ## Next tasks list
 - Integrate GPT 5.6 Luna after user confirms AI budget/key flow
-- Add report date range and purpose grouping
+- Add report purpose grouping and optional signature block
 - Improve offline-first PWA behavior for Android

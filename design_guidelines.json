@@ -1,0 +1,64 @@
+{
+  "app_name": "KasFlow Mobile PWA Cash Tracker",
+  "app_type": "hybrid_fullstack",
+  "context": "Dashboard & Mobile PWA Tracker (Organic & Earthy / FinTech)",
+  "typography": {
+    "headings": "Outfit, sans-serif",
+    "body": "Plus Jakarta Sans, sans-serif",
+    "weights": {
+      "light": "font-light",
+      "normal": "font-normal",
+      "semibold": "font-semibold",
+      "bold": "font-bold",
+      "black": "font-black"
+    }
+  },
+  "colors": {
+    "primary": "#16A34A",
+    "primary_hover": "#15803D",
+    "accent_red": "#EF4444",
+    "background": "#0F172A",
+    "surface": "#1E293B",
+    "surface_card": "#334155",
+    "text_primary": "#F8FAFC",
+    "text_secondary": "#94A3B8",
+    "border_color": "#475569"
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-xl bg-slate-900/80 border border-slate-700/50",
+    "shadows": "shadow-[0_8px_32px_rgba(0,0,0,0.37)]",
+    "radius": "rounded-2xl"
+  },
+  "grids": {
+    "dashboard_grid": "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6",
+    "tetris_grid": "col-span-full md:col-span-8 row-span-2"
+  },
+  "layouts": {
+    "container": "max-w-md mx-auto min-h-screen pb-24 md:max-w-4xl lg:max-w-6xl px-4 pt-4",
+    "header": "sticky top-0 z-50 backdrop-blur-xl bg-slate-900/90 border-b border-slate-800 px-4 py-3 flex items-center justify-between"
+  },
+  "motion": {
+    "transition": "transition-all duration-200 ease-in-out",
+    "hover_lift": "hover:-translate-y-0.5"
+  },
+  "accessibility": {
+    "apca_contrast": "compliant",
+    "reduced_motion_support": true,
+    "interactive_data_testid_required": true
+  },
+  "media": {
+    "hero_image": "https://images.unsplash.com/photo-1691084041747-9cc0ade8ceda?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NjV8MHwxfHNlYXJjaHwxfHxtaW5pbWFsaXN0JTIwZmluYW5jZSUyMGxvZ28lMjBhYnN0cmFjdCUyMGdyZWVufGVufDB8fHx8MTc4NjkzMDkxNnww&ixlib=rb-4.1.0&q=85"
+  },
+  "instructions_to_main_agent": [
+    "Ensure all interactive items have data-testid attributes.",
+    "Implement mobile-first PWA dashboard with Cash In, Cash Out, Balance, Purpose, and optional Evidence Upload.",
+    "Include smart natural language / chat parser for quick transaction entry (e.g. '50000 makan siang cash out').",
+    "Include Excel export functionality (.xlsx via SheetJS or CSV fallback).",
+    "Integrate ChatGPT (GPT-5.6 Luna) AI assistant drawer/tab for financial insights and voice/text logging."
+  ],
+  "universal_guidelines": [
+    "Never use complete transparent background in headers or overlays.",
+    "Use generous spacing and consistent padding inside bordered cards.",
+    "Ensure hover states have explicit text color set."
+  ]
+}

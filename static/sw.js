@@ -1,5 +1,5 @@
 // KasFlow service worker — offline shell
-const CACHE = 'kasflow-v2';
+const CACHE = 'kasflow-v3';
 const ASSETS = [
   './',
   './index.html',

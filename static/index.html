@@ -69,6 +69,7 @@
   .transaction-amount .row-actions a,.transaction-amount .row-actions button{color:#66776d;background:none;border:0;padding:0;font-size:11px;text-decoration:none}
   .transaction-amount .row-actions a:hover{color:var(--green)}
   .transaction-amount .row-actions button:hover{color:var(--red)}
+  .transaction-amount .row-actions .edit-btn:hover{color:var(--green)}
   .empty-state{display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--muted);font-size:12px;padding:48px 10px;text-align:center}
   .empty-state strong{font:500 16px Outfit;color:var(--ink)}
   .add-fab{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);border:0;background:var(--green);color:#102017;padding:14px 22px;border-radius:99px;font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px;box-shadow:0 8px 25px #0007;z-index:4}
@@ -154,7 +155,7 @@
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import { getAuth, signInAnonymously, onAuthStateChanged, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
-import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import { getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js';
 
 // ---------- STATE ----------
@@ -163,7 +164,8 @@ const state = {
   transactions: [],
   loading: true,
   filter: 'all',
-  modal: null, // 'add' | 'export' | 'import' | 'menu' | null
+  modal: null, // 'add' | 'edit' | 'export' | 'import' | 'menu' | null
+  editing: null, // transaction being edited
   editingEvidence: null,
   db: null,
   storage: null,
@@ -291,6 +293,17 @@ async function addTransaction(payload, file){
   });
 }
 
+async function updateTransaction(id, payload){
+  await updateDoc(doc(state.db, `users/${state.user.uid}/transactions/${id}`), {
+    transaction_type: payload.transaction_type,
+    amount: Number(payload.amount),
+    purpose: payload.purpose,
+    transaction_date: payload.transaction_date,
+    note: payload.note,
+    updated_at: serverTimestamp(),
+  });
+}
+
 async function removeTransaction(item){
   if(!confirm(`Hapus transaksi "${item.purpose}"?`)) return;
   if(item.evidence_path){
@@ -376,6 +389,7 @@ function render(){
                 <strong>${t.transaction_type==='cash_in'?'+':'-'} ${fmtRp(t.amount)}</strong>
                 <div class="row-actions">
                   ${t.evidence_url?`<a href="${t.evidence_url}" target="_blank" rel="noopener" class="evidence-link">Bukti</a>`:''}
+                  <button onclick='window.__kf.startEdit(${JSON.stringify(t).replace(/'/g,"&#39;")})' data-testid="edit-transaction" class="edit-btn">Edit</button>
                   <button onclick='window.__kf.remove(${JSON.stringify(t).replace(/'/g,"&#39;")})' data-testid="delete-transaction">Hapus</button>
                 </div>
               </div>
@@ -384,7 +398,7 @@ function render(){
         </div>
       </div>
       <button class="add-fab" data-testid="add-transaction-fab" onclick="window.__kf.openModal('add')">+ Tambah transaksi</button>
-      ${state.modal==='add'?renderAddModal():''}
+      ${(state.modal==='add' || state.modal==='edit')?renderAddModal():''}
       ${state.modal==='export'?renderExportModal():''}
       ${state.modal==='import'?renderImportModal():''}
       ${renderBackupBanner()}
@@ -444,28 +458,39 @@ function renderBackupBanner(){
 }
 
 function renderAddModal(){
+  const isEdit = state.modal === 'edit' && state.editing;
+  const t = isEdit ? state.editing : null;
+  const initType = t ? t.transaction_type : 'cash_in';
+  const inSel = initType === 'cash_in' ? 'selected in' : '';
+  const outSel = initType === 'cash_out' ? 'selected out' : '';
   return `
     <div class="modal-backdrop" onclick="if(event.target===this) window.__kf.closeModal()">
-      <form class="modal" data-testid="add-transaction-modal" onsubmit="window.__kf.submitAdd(event)">
+      <form class="modal" data-testid="${isEdit?'edit':'add'}-transaction-modal" onsubmit="window.__kf.submitAdd(event)">
         <div class="form-heading">
-          <div><p class="eyebrow">TRANSAKSI BARU</p><h2>Catat transaksi</h2></div>
+          <div><p class="eyebrow">${isEdit?'EDIT TRANSAKSI':'TRANSAKSI BARU'}</p><h2>${isEdit?'Ubah transaksi':'Catat transaksi'}</h2></div>
           <button type="button" class="close-button" onclick="window.__kf.closeModal()">×</button>
         </div>
         <div class="type-switch">
-          <button type="button" id="btn-in" class="selected in" onclick="window.__kf.pickType('cash_in')" data-testid="pick-cash-in">Cash in</button>
-          <button type="button" id="btn-out" onclick="window.__kf.pickType('cash_out')" data-testid="pick-cash-out">Cash out</button>
+          <button type="button" id="btn-in" class="${inSel}" onclick="window.__kf.pickType('cash_in')" data-testid="pick-cash-in">Cash in</button>
+          <button type="button" id="btn-out" class="${outSel}" onclick="window.__kf.pickType('cash_out')" data-testid="pick-cash-out">Cash out</button>
         </div>
-        <input type="hidden" id="f-type" value="cash_in" />
-        <label>Nominal (Rp)<input id="f-amount" type="number" min="1" required placeholder="0" inputmode="numeric" data-testid="input-amount" /></label>
-        <label>Purpose<input id="f-purpose" required maxlength="120" placeholder="Contoh: bayar makan siang" data-testid="input-purpose" /></label>
-        <label>Tanggal<input id="f-date" type="date" required value="${todayISO()}" data-testid="input-date" /></label>
-        <label>Catatan <span class="optional">(opsional)</span><textarea id="f-note" maxlength="500" data-testid="input-note"></textarea></label>
-        <label class="upload-label" id="lbl-upload">
-          <span>📎</span> <span id="upload-text">Lampirkan bukti (opsional)</span>
-          <input type="file" id="f-file" accept="image/*,application/pdf" onchange="window.__kf.previewFile()" data-testid="input-evidence" />
-          <small id="upload-size"></small>
-        </label>
-        <button class="save-button" id="save-btn" type="submit" data-testid="save-transaction">Simpan transaksi</button>
+        <input type="hidden" id="f-type" value="${initType}" />
+        <label>Nominal (Rp)<input id="f-amount" type="number" min="1" required placeholder="0" inputmode="numeric" value="${t?t.amount:''}" data-testid="input-amount" /></label>
+        <label>Purpose<input id="f-purpose" required maxlength="120" placeholder="Contoh: bayar makan siang" value="${t?escapeHtml(t.purpose||''):''}" data-testid="input-purpose" /></label>
+        <label>Tanggal<input id="f-date" type="date" required value="${t?t.transaction_date:todayISO()}" data-testid="input-date" /></label>
+        <label>Catatan <span class="optional">(opsional)</span><textarea id="f-note" maxlength="500" data-testid="input-note">${t?escapeHtml(t.note||''):''}</textarea></label>
+        ${isEdit ? `
+          <div style="color:var(--muted);font-size:11px;margin-top:12px;padding:10px 12px;background:#101a15;border:1px solid var(--line)">
+            ${t.evidence_url ? '📎 Bukti terlampir (tidak diubah dalam edit). Untuk ganti bukti, hapus transaksi lalu buat ulang.' : 'Bukti tidak bisa ditambahkan saat edit. Hapus & buat ulang untuk melampirkan bukti.'}
+          </div>
+        ` : `
+          <label class="upload-label" id="lbl-upload">
+            <span>📎</span> <span id="upload-text">Lampirkan bukti (opsional)</span>
+            <input type="file" id="f-file" accept="image/*,application/pdf" onchange="window.__kf.previewFile()" data-testid="input-evidence" />
+            <small id="upload-size"></small>
+          </label>
+        `}
+        <button class="save-button" id="save-btn" type="submit" data-testid="save-transaction">${isEdit?'Simpan perubahan':'Simpan transaksi'}</button>
       </form>
     </div>
   `;
@@ -582,8 +607,9 @@ function exportExcel({ start, end, opening, reporter }){
 window.__kf = {
   toggleMenu(){ state.modal = state.modal==='menu' ? null : 'menu'; render(); },
   openModal(m){ state.modal = m; render(); },
-  closeModal(){ state.modal = null; render(); },
+  closeModal(){ state.modal = null; state.editing = null; render(); },
   setFilter(f){ state.filter = f; render(); },
+  startEdit(item){ state.editing = item; state.modal = 'edit'; render(); },
   pickType(t){
     const inB = document.getElementById('btn-in');
     const outB = document.getElementById('btn-out');
@@ -598,8 +624,9 @@ window.__kf = {
   },
   async submitAdd(e){
     e.preventDefault();
+    const isEdit = state.modal === 'edit' && state.editing;
     const btn = document.getElementById('save-btn');
-    btn.disabled = true; btn.textContent = 'Menyimpan...';
+    btn.disabled = true; btn.textContent = isEdit ? 'Menyimpan...' : 'Menyimpan...';
     const payload = {
       transaction_type: document.getElementById('f-type').value,
       amount: document.getElementById('f-amount').value,
@@ -607,16 +634,22 @@ window.__kf = {
       transaction_date: document.getElementById('f-date').value,
       note: document.getElementById('f-note').value.trim(),
     };
-    const file = document.getElementById('f-file').files[0] || null;
-    if(file && file.size > 10*1024*1024){ toast('Ukuran file maksimal 10 MB','error'); btn.disabled=false; btn.textContent='Simpan transaksi'; return; }
     try{
-      await addTransaction(payload, file);
-      toast('Transaksi tersimpan');
-      state.modal = null; render();
+      if(isEdit){
+        await updateTransaction(state.editing.id, payload);
+        toast('Transaksi diperbarui');
+      } else {
+        const fileEl = document.getElementById('f-file');
+        const file = fileEl && fileEl.files[0] || null;
+        if(file && file.size > 10*1024*1024){ toast('Ukuran file maksimal 10 MB','error'); btn.disabled=false; btn.textContent='Simpan transaksi'; return; }
+        await addTransaction(payload, file);
+        toast('Transaksi tersimpan');
+      }
+      state.modal = null; state.editing = null; render();
     }catch(err){
       console.error(err);
       toast('Gagal menyimpan: '+err.message,'error');
-      btn.disabled = false; btn.textContent = 'Simpan transaksi';
+      btn.disabled = false; btn.textContent = isEdit?'Simpan perubahan':'Simpan transaksi';
     }
   },
   async remove(item){ try{ await removeTransaction(item); }catch(err){ toast('Gagal hapus: '+err.message,'error'); } },

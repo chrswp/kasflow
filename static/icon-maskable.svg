@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full-bleed background (needed for maskable safe zone) -->
+  <rect width="512" height="512" fill="#0e1713"/>
+  <!-- Content stays inside 80% safe zone -->
+  <g transform="translate(51.2 51.2)">
+    <rect width="409.6" height="409.6" rx="72" fill="#17231d"/>
+    <path d="M115 280 L180 220 L235 275 L320 175" stroke="#70d49a" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <circle cx="320" cy="175" r="18" fill="#70d49a"/>
+    <text x="205" y="360" text-anchor="middle" font-family="'Outfit',system-ui,sans-serif" font-weight="700" font-size="60" fill="#f5f7f3">KasFlow</text>
+  </g>
+</svg>

@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<meta name="theme-color" content="#0e1713" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>KasFlow · Cash Tracker</title>
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="icon" type="image/svg+xml" href="./icon.svg" />
+<link rel="apple-touch-icon" href="./icon-192.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<style>
+  :root { --ink:#f5f7f3; --muted:#9aa99e; --line:#2d3b34; --panel:#17231d; --green:#70d49a; --red:#f28e83; }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:#0e1713;color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,sans-serif;-webkit-tap-highlight-color:transparent;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+  button,input,textarea,select{font:inherit;color:inherit}
+  button{cursor:pointer}
+  .app-shell{min-height:100vh;background:radial-gradient(circle at 80% 0%,#193326 0%,#0e1713 36%)}
+  .topbar{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid #233128;max-width:1080px;margin:auto}
+  .brand{display:flex;align-items:center;gap:11px}
+  .brand-mark{height:36px;width:36px;display:grid;place-items:center;background:var(--green);color:#0c1911;border-radius:12px;font-weight:800}
+  .brand strong{display:block;font-family:Outfit;font-size:19px;letter-spacing:.2px}
+  .brand small{display:block;color:var(--muted);font-size:10px;letter-spacing:1.4px;text-transform:uppercase;margin-top:1px}
+  .icon-button{background:none;border:0;color:var(--muted);padding:8px;border-radius:8px}
+  .icon-button:hover{background:#1c2a22;color:var(--ink)}
+  .content{max-width:1080px;margin:auto;padding:35px 20px 130px}
+  .welcome-row,.section-heading,.form-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+  .eyebrow{font-size:10px;letter-spacing:2px;color:var(--green);font-weight:700;margin:0 0 8px}
+  .welcome-row h1{font:600 40px/1.02 Outfit;margin:0}
+  .welcome-row h1 em{font-style:normal;color:var(--green)}
+  .date-chip{border:1px solid var(--line);color:var(--muted);padding:8px 12px;border-radius:99px;font-size:11px;white-space:nowrap}
+  .balance-panel{margin-top:32px;border:1px solid #31513e;background:linear-gradient(120deg,#1c3a2a,#153022);padding:24px;position:relative;overflow:hidden}
+  .balance-panel span{color:#b5c9bb;font-size:13px}
+  .balance-panel strong{font:600 36px Outfit;display:block;margin-top:8px}
+  .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  .stat-card{border:1px solid var(--line);padding:16px;display:grid;grid-template-columns:32px 1fr;column-gap:10px}
+  .stat-card span{font-size:11px;color:var(--muted);align-self:center}
+  .stat-card strong{font:500 17px Outfit;grid-column:2;margin-top:3px}
+  .stat-icon{grid-row:span 2;width:30px;height:30px;display:grid;place-items:center;border-radius:9px;font-weight:800}
+  .income .stat-icon{background:#234734;color:var(--green)}
+  .expense .stat-icon{background:#4a2d2a;color:var(--red)}
+  .section-heading{align-items:end;margin-top:44px}
+  .section-heading h2{font:500 22px Outfit;margin:0}
+  .section-actions{display:flex;gap:14px}
+  .link-button{background:none;border:0;color:var(--green);font-size:12px;padding:8px 0}
+  .filter-tabs{display:flex;gap:20px;border-bottom:1px solid var(--line);margin-top:22px;overflow-x:auto}
+  .filter-tabs button{color:var(--muted);border:0;background:none;padding:0 0 12px;font-size:12px;white-space:nowrap}
+  .filter-tabs button.active{color:var(--ink);border-bottom:2px solid var(--green)}
+  .filter-tabs b{background:#26382d;border-radius:20px;padding:2px 6px;margin-left:3px;color:var(--green);font-size:10px;font-weight:600}
+  .transaction-list{min-height:180px}
+  .transaction-item{display:flex;align-items:center;gap:13px;padding:16px 2px;border-bottom:1px solid #25332b}
+  .transaction-icon{width:36px;height:36px;display:grid;place-items:center;flex:none;font-weight:800}
+  .transaction-icon.cash_in{background:#204532;color:var(--green)}
+  .transaction-icon.cash_out{background:#422826;color:var(--red)}
+  .transaction-info{flex:1;min-width:0}
+  .transaction-info strong{display:block;font:500 14px Outfit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .transaction-info span{display:block;color:var(--muted);font-size:11px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .transaction-amount{text-align:right;flex:none}
+  .transaction-amount strong{font:500 13px Outfit;white-space:nowrap}
+  .transaction-amount.cash_in strong{color:var(--green)}
+  .transaction-amount.cash_out strong{color:var(--red)}
+  .transaction-amount .row-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:5px}
+  .transaction-amount .row-actions a,.transaction-amount .row-actions button{color:#66776d;background:none;border:0;padding:0;font-size:11px;text-decoration:none}
+  .transaction-amount .row-actions a:hover{color:var(--green)}
+  .transaction-amount .row-actions button:hover{color:var(--red)}
+  .empty-state{display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--muted);font-size:12px;padding:48px 10px;text-align:center}
+  .empty-state strong{font:500 16px Outfit;color:var(--ink)}
+  .add-fab{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);border:0;background:var(--green);color:#102017;padding:14px 22px;border-radius:99px;font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px;box-shadow:0 8px 25px #0007;z-index:4}
+  .add-fab:hover{background:#91e3b2}
+  .modal-backdrop{position:fixed;inset:0;background:#07100bd9;display:flex;justify-content:center;align-items:flex-end;padding:14px;z-index:6;backdrop-filter:blur(8px)}
+  .modal{width:min(100%,500px);max-height:92vh;overflow:auto;background:#17231d;border:1px solid #385044;padding:22px 20px;box-shadow:0 0 50px #0009}
+  .form-heading{align-items:center;margin-bottom:6px}
+  .form-heading h2{font:500 22px Outfit;margin:0}
+  .close-button{background:none;border:0;color:var(--muted);font-size:26px;padding:4px 8px;line-height:1}
+  .type-switch{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);margin:22px 0 16px}
+  .type-switch button{background:none;color:var(--muted);border:0;padding:11px;font-size:12px}
+  .type-switch button.selected.in{background:#234734;color:var(--green)}
+  .type-switch button.selected.out{background:#4a2d2a;color:var(--red)}
+  .modal label{display:block;color:#b5c9bb;font-size:11px;margin:12px 0}
+  .modal input,.modal textarea,.modal select,.setup-card input,.setup-card textarea{display:block;width:100%;margin-top:6px;background:#101a15;border:1px solid var(--line);color:var(--ink);padding:11px 12px;border-radius:2px;outline:none;font-family:inherit}
+  .modal textarea{height:66px;resize:vertical}
+  .modal input:focus,.modal textarea:focus,.modal select:focus,.setup-card textarea:focus,.setup-card input:focus{border-color:var(--green)}
+  .optional{color:#718077}
+  .upload-label{border:1px dashed #4c6757;padding:14px;display:flex!important;gap:8px;align-items:center;color:var(--green)!important;cursor:pointer}
+  .upload-label input{display:none}
+  .upload-label small{color:var(--muted);margin-left:auto}
+  .save-button{width:100%;border:0;background:var(--green);color:#102017;padding:14px;font-weight:700;display:flex;justify-content:center;align-items:center;gap:8px;margin-top:20px}
+  .save-button:hover{background:#91e3b2}
+  .save-button[disabled]{opacity:.5;cursor:not-allowed}
+  .date-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .export-hint{color:var(--muted);font-size:12px;line-height:1.5;margin:16px 0}
+  .setup-screen{min-height:100vh;display:grid;place-items:center;padding:30px 20px;background:radial-gradient(circle at 80% 0%,#193326 0%,#0e1713 36%)}
+  .setup-card{width:min(100%,520px);background:#17231d;border:1px solid #385044;padding:32px 26px}
+  .setup-card h1{font:600 26px Outfit;margin:0 0 6px}
+  .setup-card p{color:var(--muted);font-size:13px;line-height:1.6;margin:6px 0}
+  .setup-card code{background:#101a15;padding:2px 6px;border-radius:3px;color:var(--green);font-size:12px}
+  .setup-card ol{padding-left:20px;color:#b5c9bb;font-size:13px;line-height:1.8}
+  .setup-card ol a{color:var(--green)}
+  .setup-card textarea{min-height:180px;font-family:ui-monospace,monospace;font-size:12px}
+  .toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#17231d;border:1px solid #385044;padding:12px 18px;border-radius:6px;font-size:13px;box-shadow:0 8px 25px #0009;z-index:9;opacity:0;transition:opacity .2s,bottom .2s;pointer-events:none}
+  .toast.show{opacity:1;bottom:120px}
+  .toast.success{border-color:var(--green);color:var(--green)}
+  .toast.error{border-color:var(--red);color:var(--red)}
+  .menu-dropdown{position:absolute;top:56px;right:16px;background:#17231d;border:1px solid #385044;padding:6px 0;min-width:200px;z-index:5;box-shadow:0 8px 25px #0009}
+  .menu-dropdown button{display:block;width:100%;text-align:left;background:none;border:0;padding:10px 16px;color:var(--ink);font-size:13px}
+  .menu-dropdown button:hover{background:#1c2a22;color:var(--green)}
+  .loader{width:28px;height:28px;border:3px solid #385044;border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;margin:40px auto}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .pill{display:inline-block;background:#101a15;border:1px solid var(--line);padding:2px 8px;border-radius:99px;font-size:10px;color:var(--muted);margin-left:6px}
+  .evidence-link{color:var(--green);font-size:11px}
+  @media(max-width:600px){
+    .welcome-row h1{font-size:34px}
+    .balance-panel strong{font-size:30px}
+    .section-heading{margin-top:36px}
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="toast" class="toast"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import { getAuth, signInAnonymously, onAuthStateChanged, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js';
+
+// ---------- STATE ----------
+const state = {
+  user: null,
+  transactions: [],
+  loading: true,
+  filter: 'all',
+  modal: null, // 'add' | 'export' | 'import' | 'menu' | null
+  editingEvidence: null,
+  db: null,
+  storage: null,
+};
+
+// ---------- CONFIG (localStorage) ----------
+const CONFIG_KEY = 'kasflow.firebase.config';
+function getFirebaseConfig(){
+  try{ return JSON.parse(localStorage.getItem(CONFIG_KEY)||'null'); }catch{ return null; }
+}
+function saveFirebaseConfig(cfg){ localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); }
+function clearFirebaseConfig(){ localStorage.removeItem(CONFIG_KEY); }
+
+// ---------- UTILS ----------
+const $ = (id) => document.getElementById(id);
+const root = () => $('root');
+const todayISO = () => new Date().toISOString().slice(0,10);
+const fmtRp = (n) => new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0}).format(n||0);
+const fmtDate = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+const fmtDateChip = () => new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long'});
+const escapeHtml = (s='') => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function toast(msg, type='success'){
+  const el = $('toast');
+  el.textContent = msg;
+  el.className = `toast show ${type}`;
+  setTimeout(()=>{ el.className='toast'; }, 2400);
+}
+
+// ---------- FIREBASE INIT ----------
+async function initFirebase(){
+  const cfg = getFirebaseConfig();
+  if(!cfg){ renderSetup(); return; }
+  try{
+    const app = initializeApp(cfg);
+    const auth = getAuth(app);
+    await setPersistence(auth, browserLocalPersistence);
+    state.db = getFirestore(app);
+    state.storage = getStorage(app);
+    onAuthStateChanged(auth, async (user) => {
+      if(!user){
+        try{ await signInAnonymously(auth); }
+        catch(err){
+          console.error(err);
+          toast('Firebase gagal: '+err.code+'. Cek Anonymous Auth aktif & config benar.','error');
+        }
+        return;
+      }
+      state.user = user;
+      subscribeTransactions();
+    });
+  }catch(err){
+    console.error(err);
+    toast('Firebase config tidak valid. Cek ulang.','error');
+    setTimeout(()=>{ clearFirebaseConfig(); renderSetup(); }, 1500);
+  }
+}
+
+function subscribeTransactions(){
+  const q = query(collection(state.db, `users/${state.user.uid}/transactions`), orderBy('transaction_date','desc'));
+  onSnapshot(q, (snap) => {
+    state.transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    state.loading = false;
+    render();
+  }, (err) => {
+    console.error(err);
+    state.loading = false;
+    toast('Gagal memuat data. Cek Firestore Rules.','error');
+    render();
+  });
+}
+
+// ---------- CRUD ----------
+async function addTransaction(payload, file){
+  let evidence_url = null, evidence_path = null;
+  if(file){
+    const path = `users/${state.user.uid}/evidence/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+    const r = storageRef(state.storage, path);
+    await uploadBytes(r, file, { contentType: file.type });
+    evidence_url = await getDownloadURL(r);
+    evidence_path = path;
+  }
+  await addDoc(collection(state.db, `users/${state.user.uid}/transactions`), {
+    ...payload,
+    amount: Number(payload.amount),
+    evidence_url,
+    evidence_path,
+    created_at: serverTimestamp(),
+  });
+}
+
+async function removeTransaction(item){
+  if(!confirm(`Hapus transaksi "${item.purpose}"?`)) return;
+  if(item.evidence_path){
+    try{ await deleteObject(storageRef(state.storage, item.evidence_path)); }catch(e){ console.warn(e); }
+  }
+  await deleteDoc(doc(state.db, `users/${state.user.uid}/transactions/${item.id}`));
+  toast('Transaksi dihapus');
+}
+
+// ---------- BALANCE ----------
+function stats(){
+  const cashIn = state.transactions.filter(t=>t.transaction_type==='cash_in').reduce((s,t)=>s+Number(t.amount||0),0);
+  const cashOut = state.transactions.filter(t=>t.transaction_type==='cash_out').reduce((s,t)=>s+Number(t.amount||0),0);
+  return { cashIn, cashOut, balance: cashIn - cashOut };
+}
+function filtered(){
+  if(state.filter==='all') return state.transactions;
+  return state.transactions.filter(t => t.transaction_type===state.filter);
+}
+function countByType(type){
+  if(type==='all') return state.transactions.length;
+  return state.transactions.filter(t=>t.transaction_type===type).length;
+}
+
+// ---------- RENDER ----------
+function render(){
+  if(!getFirebaseConfig()){ renderSetup(); return; }
+  const s = stats();
+  const items = filtered();
+  root().innerHTML = `
+    <div class="app-shell">
+      <div class="topbar">
+        <div class="brand"><div class="brand-mark">K</div><div><strong>KasFlow</strong><small>Cash tracker</small></div></div>
+        <button class="icon-button" data-testid="menu-button" onclick="window.__kf.toggleMenu()" aria-label="Menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+        </button>
+        ${state.modal==='menu'?`
+          <div class="menu-dropdown">
+            <button data-testid="menu-export" onclick="window.__kf.openModal('export')">Export ke Excel</button>
+            <button data-testid="menu-backup" onclick="window.__kf.exportJSON()">Backup ke JSON</button>
+            <button data-testid="menu-import" onclick="window.__kf.openModal('import')">Import dari JSON</button>
+            <button data-testid="menu-reset" onclick="window.__kf.resetConfig()">Ganti Firebase config</button>
+          </div>`:''}
+      </div>
+      <div class="content">
+        <div class="welcome-row">
+          <div>
+            <p class="eyebrow">DASHBOARD</p>
+            <h1>Halo, <em>saldo kas</em></h1>
+          </div>
+          <span class="date-chip">${fmtDateChip()}</span>
+        </div>
+        <div class="balance-panel" data-testid="balance-panel">
+          <div><span>Saldo saat ini</span><strong>${fmtRp(s.balance)}</strong></div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card income"><div class="stat-icon">↑</div><span>Total Cash In</span><strong data-testid="cash-in-total">${fmtRp(s.cashIn)}</strong></div>
+          <div class="stat-card expense"><div class="stat-icon">↓</div><span>Total Cash Out</span><strong data-testid="cash-out-total">${fmtRp(s.cashOut)}</strong></div>
+        </div>
+        <div class="section-heading">
+          <h2>Riwayat</h2>
+          <div class="section-actions">
+            <button class="link-button" data-testid="export-button" onclick="window.__kf.openModal('export')">Export</button>
+          </div>
+        </div>
+        <div class="filter-tabs">
+          <button class="${state.filter==='all'?'active':''}" onclick="window.__kf.setFilter('all')" data-testid="filter-all">Semua <b>${countByType('all')}</b></button>
+          <button class="${state.filter==='cash_in'?'active':''}" onclick="window.__kf.setFilter('cash_in')" data-testid="filter-in">Cash in <b>${countByType('cash_in')}</b></button>
+          <button class="${state.filter==='cash_out'?'active':''}" onclick="window.__kf.setFilter('cash_out')" data-testid="filter-out">Cash out <b>${countByType('cash_out')}</b></button>
+        </div>
+        <div class="transaction-list" data-testid="transaction-list">
+          ${state.loading ? '<div class="loader"></div>' : items.length===0 ? `
+            <div class="empty-state"><strong>Belum ada transaksi</strong><span>Ketuk tombol "Tambah transaksi" untuk mulai mencatat</span></div>
+          ` : items.map(t => `
+            <div class="transaction-item" data-testid="transaction-item">
+              <div class="transaction-icon ${t.transaction_type}">${t.transaction_type==='cash_in'?'↑':'↓'}</div>
+              <div class="transaction-info">
+                <strong>${escapeHtml(t.purpose||'-')}</strong>
+                <span>${fmtDate(t.transaction_date)} · ${escapeHtml(t.note||'')}</span>
+              </div>
+              <div class="transaction-amount ${t.transaction_type}">
+                <strong>${t.transaction_type==='cash_in'?'+':'-'} ${fmtRp(t.amount)}</strong>
+                <div class="row-actions">
+                  ${t.evidence_url?`<a href="${t.evidence_url}" target="_blank" rel="noopener" class="evidence-link">Bukti</a>`:''}
+                  <button onclick='window.__kf.remove(${JSON.stringify(t).replace(/'/g,"&#39;")})' data-testid="delete-transaction">Hapus</button>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <button class="add-fab" data-testid="add-transaction-fab" onclick="window.__kf.openModal('add')">+ Tambah transaksi</button>
+      ${state.modal==='add'?renderAddModal():''}
+      ${state.modal==='export'?renderExportModal():''}
+      ${state.modal==='import'?renderImportModal():''}
+    </div>
+  `;
+}
+
+function renderAddModal(){
+  return `
+    <div class="modal-backdrop" onclick="if(event.target===this) window.__kf.closeModal()">
+      <form class="modal" data-testid="add-transaction-modal" onsubmit="window.__kf.submitAdd(event)">
+        <div class="form-heading">
+          <div><p class="eyebrow">TRANSAKSI BARU</p><h2>Catat transaksi</h2></div>
+          <button type="button" class="close-button" onclick="window.__kf.closeModal()">×</button>
+        </div>
+        <div class="type-switch">
+          <button type="button" id="btn-in" class="selected in" onclick="window.__kf.pickType('cash_in')" data-testid="pick-cash-in">Cash in</button>
+          <button type="button" id="btn-out" onclick="window.__kf.pickType('cash_out')" data-testid="pick-cash-out">Cash out</button>
+        </div>
+        <input type="hidden" id="f-type" value="cash_in" />
+        <label>Nominal (Rp)<input id="f-amount" type="number" min="1" required placeholder="0" inputmode="numeric" data-testid="input-amount" /></label>
+        <label>Purpose<input id="f-purpose" required maxlength="120" placeholder="Contoh: bayar makan siang" data-testid="input-purpose" /></label>
+        <label>Tanggal<input id="f-date" type="date" required value="${todayISO()}" data-testid="input-date" /></label>
+        <label>Catatan <span class="optional">(opsional)</span><textarea id="f-note" maxlength="500" data-testid="input-note"></textarea></label>
+        <label class="upload-label" id="lbl-upload">
+          <span>📎</span> <span id="upload-text">Lampirkan bukti (opsional)</span>
+          <input type="file" id="f-file" accept="image/*,application/pdf" onchange="window.__kf.previewFile()" data-testid="input-evidence" />
+          <small id="upload-size"></small>
+        </label>
+        <button class="save-button" id="save-btn" type="submit" data-testid="save-transaction">Simpan transaksi</button>
+      </form>
+    </div>
+  `;
+}
+
+function renderExportModal(){
+  const dates = state.transactions.map(t=>t.transaction_date).sort();
+  return `
+    <div class="modal-backdrop" onclick="if(event.target===this) window.__kf.closeModal()">
+      <form class="modal" onsubmit="window.__kf.doExport(event)">
+        <div class="form-heading">
+          <div><p class="eyebrow">EXPORT LAPORAN</p><h2>Petty Cash Report</h2></div>
+          <button type="button" class="close-button" onclick="window.__kf.closeModal()">×</button>
+        </div>
+        <p class="export-hint">Pilih periode, saldo awal, dan pelapor. File akan diunduh sebagai .xlsx.</p>
+        <div class="date-fields">
+          <label>Dari<input type="date" id="ex-start" value="${dates[0]||todayISO()}" required /></label>
+          <label>Sampai<input type="date" id="ex-end" value="${dates[dates.length-1]||todayISO()}" required /></label>
+        </div>
+        <label>Saldo awal periode (Rp)<input type="number" id="ex-opening" min="0" value="0" /></label>
+        <label>Dilaporkan oleh<input type="text" id="ex-reporter" placeholder="Nama pelapor" /></label>
+        <button class="save-button" type="submit" data-testid="do-export">Download Excel</button>
+      </form>
+    </div>
+  `;
+}
+
+function renderImportModal(){
+  return `
+    <div class="modal-backdrop" onclick="if(event.target===this) window.__kf.closeModal()">
+      <form class="modal" onsubmit="window.__kf.doImport(event)">
+        <div class="form-heading">
+          <div><p class="eyebrow">IMPORT DATA</p><h2>Import dari JSON</h2></div>
+          <button type="button" class="close-button" onclick="window.__kf.closeModal()">×</button>
+        </div>
+        <p class="export-hint">Pilih file backup JSON yang sebelumnya diexport. Data akan ditambahkan (tidak menimpa data yang sudah ada).</p>
+        <label class="upload-label">
+          <span>📁</span> <span id="imp-text">Pilih file .json</span>
+          <input type="file" id="imp-file" accept="application/json,.json" onchange="document.getElementById('imp-text').textContent=this.files[0]?.name||'Pilih file .json'" />
+        </label>
+        <button class="save-button" type="submit" data-testid="do-import">Import sekarang</button>
+      </form>
+    </div>
+  `;
+}
+
+function renderSetup(){
+  root().innerHTML = `
+    <div class="setup-screen">
+      <form class="setup-card" onsubmit="window.__kf.saveSetup(event)">
+        <h1>Setup Firebase</h1>
+        <p>Aplikasi ini butuh koneksi ke Firebase (Firestore + Storage + Anonymous Auth). Setup gratis, sekali saja.</p>
+        <ol>
+          <li>Buka <a href="https://console.firebase.google.com" target="_blank" rel="noopener">console.firebase.google.com</a> → <b>Add project</b></li>
+          <li>Di project, klik <b>Build → Authentication → Sign-in method</b> → aktifkan <b>Anonymous</b></li>
+          <li>Klik <b>Build → Firestore Database → Create database</b> → mode Production, region terdekat</li>
+          <li>Klik <b>Build → Storage → Get started</b> → mode Production</li>
+          <li>Copy <b>Security Rules</b> dari file <code>README.md</code> ke Firestore & Storage</li>
+          <li>Klik ⚙️ <b>Project settings → Your apps → Web (&lt;/&gt;)</b> → daftarkan app → copy <code>firebaseConfig</code> object</li>
+          <li>Paste seluruh object <code>firebaseConfig</code> di sini:</li>
+        </ol>
+        <label>Firebase config (JSON atau JS object)
+          <textarea id="setup-cfg" placeholder='{&#10;  "apiKey": "AIzaSy...",&#10;  "authDomain": "xxx.firebaseapp.com",&#10;  "projectId": "xxx",&#10;  "storageBucket": "xxx.appspot.com",&#10;  "messagingSenderId": "...",&#10;  "appId": "..."&#10;}' data-testid="setup-config"></textarea>
+        </label>
+        <button class="save-button" type="submit" data-testid="setup-save">Simpan &amp; Mulai</button>
+      </form>
+    </div>
+  `;
+}
+
+// ---------- EXPORT EXCEL ----------
+function exportExcel({ start, end, opening, reporter }){
+  const XLSX = window.XLSX;
+  const rows = state.transactions.filter(t => t.transaction_date>=start && t.transaction_date<=end).sort((a,b)=>a.transaction_date.localeCompare(b.transaction_date));
+  const cashIn = rows.filter(t=>t.transaction_type==='cash_in').reduce((s,t)=>s+Number(t.amount||0),0);
+  const cashOut = rows.filter(t=>t.transaction_type==='cash_out').reduce((s,t)=>s+Number(t.amount||0),0);
+  const startLabel = new Date(`${start}T00:00:00`).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  const endLabel = new Date(`${end}T00:00:00`).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  const data = [
+    ['PETTY CASH REPORT'],
+    [`Period: ${startLabel} s.d. ${endLabel}`],
+    [`Reported by: ${reporter||'-'}`],
+    [],
+    ['No','Tanggal','Jenis Pengeluaran','Keterangan','Cash In (Rp)','Cash Out (Rp)'],
+    ['','','',`Saldo awal periode (saldo per ${startLabel})`, opening, ''],
+    ...rows.map((t,i)=>[i+1, new Date(`${t.transaction_date}T00:00:00`), t.purpose, t.note||t.purpose, t.transaction_type==='cash_in'?Number(t.amount):'', t.transaction_type==='cash_out'?Number(t.amount):'']),
+    ['','','','','',''],
+    ['','','','Total', opening+cashIn, cashOut],
+    ['','','','','',''],
+    ['','','','Balance', opening+cashIn-cashOut, ''],
+  ];
+  const sheet = XLSX.utils.aoa_to_sheet(data);
+  sheet['A1'].s = { font:{name:'Arial',sz:16,bold:true,color:{rgb:'404040'}}, alignment:{horizontal:'center'} };
+  ['A2','A3'].forEach(c => { sheet[c].s = { font:{name:'Arial',sz:10,color:{rgb:'404040'}}, alignment:{horizontal:'center'} }; });
+  const headStyle = { fill:{fgColor:{rgb:'404040'}}, font:{name:'Arial',sz:10,bold:true,color:{rgb:'FFFFFF'}}, alignment:{horizontal:'center',vertical:'center',wrapText:true}, border:{top:{style:'thin',color:{rgb:'B7B7B7'}},bottom:{style:'thin',color:{rgb:'B7B7B7'}},left:{style:'thin',color:{rgb:'B7B7B7'}},right:{style:'thin',color:{rgb:'B7B7B7'}}} };
+  ['A5','B5','C5','D5','E5','F5'].forEach(c => { sheet[c].s = headStyle; });
+  const border = { top:{style:'thin',color:{rgb:'D9D9D9'}},bottom:{style:'thin',color:{rgb:'D9D9D9'}},left:{style:'thin',color:{rgb:'D9D9D9'}},right:{style:'thin',color:{rgb:'D9D9D9'}} };
+  for(let r=6;r<=data.length;r++) for(let c=0;c<6;c++){
+    const cell = XLSX.utils.encode_cell({r:r-1,c});
+    if(sheet[cell]) sheet[cell].s = { font:{name:'Arial',sz:10,color:{rgb:'404040'}}, border, alignment:{vertical:'center',horizontal:c===3?'left':c>=4?'right':'center'}, numFmt: c>=4?'#,##0':c===1?'dd/mm/yyyy':undefined };
+  }
+  ['D','E','F'].forEach(col => { const cell = `${col}${data.length-2}`; if(sheet[cell]) sheet[cell].s = { font:{name:'Arial',sz:10,bold:true,color:{rgb:'404040'}}, border, alignment:{horizontal:'right'}, numFmt:'#,##0' }; });
+  sheet[`D${data.length}`].s = { font:{name:'Arial',sz:10,bold:true,color:{rgb:'386A9B'}}, fill:{fgColor:{rgb:'D9E2F3'}}, border, alignment:{horizontal:'right'} };
+  sheet[`E${data.length}`].s = { font:{name:'Arial',sz:10,bold:true,color:{rgb:'386A9B'}}, fill:{fgColor:{rgb:'D9E2F3'}}, border, alignment:{horizontal:'right'}, numFmt:'#,##0' };
+  sheet['!merges'] = [{s:{r:0,c:0},e:{r:0,c:5}},{s:{r:1,c:0},e:{r:1,c:5}},{s:{r:2,c:0},e:{r:2,c:5}}];
+  sheet['!cols'] = [{wch:6},{wch:14},{wch:22},{wch:44},{wch:16},{wch:16}];
+  sheet['!rows'] = [{hpt:25},{hpt:18},{hpt:18},{hpt:9},{hpt:25}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, sheet, 'Petty Cash Report');
+  XLSX.writeFile(wb, `petty-cash-report-${start}-${end}.xlsx`);
+}
+
+// ---------- ACTIONS (window.__kf) ----------
+window.__kf = {
+  toggleMenu(){ state.modal = state.modal==='menu' ? null : 'menu'; render(); },
+  openModal(m){ state.modal = m; render(); },
+  closeModal(){ state.modal = null; render(); },
+  setFilter(f){ state.filter = f; render(); },
+  pickType(t){
+    const inB = document.getElementById('btn-in');
+    const outB = document.getElementById('btn-out');
+    document.getElementById('f-type').value = t;
+    if(t==='cash_in'){ inB.classList.add('selected','in'); outB.classList.remove('selected','out'); }
+    else { outB.classList.add('selected','out'); inB.classList.remove('selected','in'); }
+  },
+  previewFile(){
+    const f = document.getElementById('f-file').files[0];
+    document.getElementById('upload-text').textContent = f ? f.name : 'Lampirkan bukti (opsional)';
+    document.getElementById('upload-size').textContent = f ? `${Math.round(f.size/1024)} KB` : '';
+  },
+  async submitAdd(e){
+    e.preventDefault();
+    const btn = document.getElementById('save-btn');
+    btn.disabled = true; btn.textContent = 'Menyimpan...';
+    const payload = {
+      transaction_type: document.getElementById('f-type').value,
+      amount: document.getElementById('f-amount').value,
+      purpose: document.getElementById('f-purpose').value.trim(),
+      transaction_date: document.getElementById('f-date').value,
+      note: document.getElementById('f-note').value.trim(),
+    };
+    const file = document.getElementById('f-file').files[0] || null;
+    if(file && file.size > 10*1024*1024){ toast('Ukuran file maksimal 10 MB','error'); btn.disabled=false; btn.textContent='Simpan transaksi'; return; }
+    try{
+      await addTransaction(payload, file);
+      toast('Transaksi tersimpan');
+      state.modal = null; render();
+    }catch(err){
+      console.error(err);
+      toast('Gagal menyimpan: '+err.message,'error');
+      btn.disabled = false; btn.textContent = 'Simpan transaksi';
+    }
+  },
+  async remove(item){ try{ await removeTransaction(item); }catch(err){ toast('Gagal hapus: '+err.message,'error'); } },
+  doExport(e){
+    e.preventDefault();
+    exportExcel({
+      start: document.getElementById('ex-start').value,
+      end: document.getElementById('ex-end').value,
+      opening: Number(document.getElementById('ex-opening').value||0),
+      reporter: document.getElementById('ex-reporter').value.trim(),
+    });
+    toast('File Excel siap diunduh');
+    state.modal = null; render();
+  },
+  exportJSON(){
+    const payload = {
+      exported_at: new Date().toISOString(),
+      version: 1,
+      transactions: state.transactions.map(({ id, ...t }) => t),
+    };
+    const blob = new Blob([JSON.stringify(payload,null,2)], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `kasflow-backup-${todayISO()}.json`; a.click();
+    URL.revokeObjectURL(url);
+    toast(`Backup ${payload.transactions.length} transaksi terunduh`);
+    state.modal = null; render();
+  },
+  async doImport(e){
+    e.preventDefault();
+    const file = document.getElementById('imp-file').files[0];
+    if(!file){ toast('Pilih file dulu','error'); return; }
+    try{
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const list = Array.isArray(data) ? data : data.transactions;
+      if(!Array.isArray(list)) throw new Error('Format JSON tidak valid');
+      let imported = 0;
+      for(const t of list){
+        const { id, created_at, evidence_path, evidence_url, ...rest } = t;
+        if(!rest.transaction_type || !rest.amount || !rest.purpose || !rest.transaction_date) continue;
+        await addDoc(collection(state.db, `users/${state.user.uid}/transactions`), {
+          ...rest,
+          amount: Number(rest.amount),
+          evidence_url: evidence_url || null,
+          evidence_path: null, // don't re-link storage path from other project
+          created_at: serverTimestamp(),
+        });
+        imported++;
+      }
+      toast(`Berhasil import ${imported} transaksi`);
+      state.modal = null; render();
+    }catch(err){
+      console.error(err);
+      toast('Gagal import: '+err.message,'error');
+    }
+  },
+  saveSetup(e){
+    e.preventDefault();
+    let raw = document.getElementById('setup-cfg').value.trim();
+    // strip "const firebaseConfig = " and trailing semicolons
+    raw = raw.replace(/^\s*(?:const|let|var)\s+\w+\s*=\s*/,'').replace(/;+\s*$/,'');
+    let cfg;
+    try{ cfg = JSON.parse(raw); }
+    catch{
+      try{ cfg = (new Function(`return (${raw})`))(); }
+      catch{ toast('Format config tidak dikenali','error'); return; }
+    }
+    if(!cfg.apiKey || !cfg.projectId){ toast('apiKey & projectId wajib ada','error'); return; }
+    saveFirebaseConfig(cfg);
+    toast('Config tersimpan, memuat aplikasi...');
+    setTimeout(()=>{ location.reload(); }, 700);
+  },
+  resetConfig(){
+    if(!confirm('Reset Firebase config? Data di Firebase tidak akan terhapus, tapi Anda perlu paste config lagi.')) return;
+    clearFirebaseConfig();
+    location.reload();
+  },
+};
+
+// ---------- SERVICE WORKER ----------
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  });
+}
+
+// ---------- BOOT ----------
+document.addEventListener('click', (e)=>{
+  if(state.modal==='menu' && !e.target.closest('.menu-dropdown') && !e.target.closest('[data-testid=menu-button]')){
+    state.modal = null; render();
+  }
+});
+initFirebase();
+render();
+</script>
+</body>
+</html>

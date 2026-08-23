@@ -114,6 +114,32 @@
   @keyframes spin{to{transform:rotate(360deg)}}
   .pill{display:inline-block;background:#101a15;border:1px solid var(--line);padding:2px 8px;border-radius:99px;font-size:10px;color:var(--muted);margin-left:6px}
   .evidence-link{color:var(--green);font-size:11px}
+  .recap-card{margin-top:14px;border:1px solid var(--line);background:#131e18;padding:18px 20px}
+  .recap-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px}
+  .recap-head h3{font:500 15px Outfit;margin:0;letter-spacing:.2px}
+  .recap-head .month-label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1.4px}
+  .recap-net{display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;border-bottom:1px dashed #26382d;margin-bottom:14px}
+  .recap-net span{color:var(--muted);font-size:11px}
+  .recap-net strong{display:block;font:600 22px Outfit;margin-top:4px}
+  .recap-net .up{color:var(--green)}
+  .recap-net .down{color:var(--red)}
+  .recap-net .side{text-align:right;font-size:11px;color:var(--muted)}
+  .recap-net .side b{display:block;color:var(--ink);font:500 13px Outfit;margin-top:3px}
+  .recap-net .side b.up{color:var(--green)}
+  .recap-net .side b.down{color:var(--red)}
+  .recap-list{display:flex;flex-direction:column;gap:10px}
+  .recap-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;font-size:12px}
+  .recap-row .name{color:#c9d5cc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .recap-row .name em{font-style:normal;color:var(--muted);margin-left:6px;font-size:10px}
+  .recap-row .amt{color:var(--red);font:500 12px Outfit;white-space:nowrap}
+  .recap-bar{grid-column:1/-1;height:4px;background:#1c2a22;overflow:hidden;border-radius:99px}
+  .recap-bar span{display:block;height:100%;background:linear-gradient(90deg,#f28e83,#e57062);border-radius:99px}
+  .recap-empty{color:var(--muted);font-size:12px;padding:8px 0;text-align:center}
+  .backup-banner{position:fixed;left:50%;transform:translateX(-50%);top:calc(76px + env(safe-area-inset-top));background:#17231d;border:1px solid var(--green);padding:10px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 25px #0009;z-index:7;font-size:12px;max-width:calc(100% - 32px)}
+  .backup-banner .msg{color:#b5c9bb}
+  .backup-banner .msg b{color:var(--green);display:block;font:500 13px Outfit;margin-bottom:2px}
+  .backup-banner button{background:var(--green);color:#102017;border:0;padding:7px 12px;font-size:12px;font-weight:700;border-radius:2px}
+  .backup-banner .dismiss{background:none;color:var(--muted);padding:6px;font-size:18px;line-height:1}
   @media(max-width:600px){
     .welcome-row h1{font-size:34px}
     .balance-panel strong{font-size:30px}
@@ -141,7 +167,11 @@ const state = {
   editingEvidence: null,
   db: null,
   storage: null,
+  backupPrompt: false,
 };
+
+const BACKUP_KEY = 'kasflow.lastBackupAt';
+const BACKUP_INTERVAL_DAYS = 7;
 
 // ---------- CONFIG (localStorage) ----------
 const CONFIG_KEY = 'kasflow.firebase.config';
@@ -201,6 +231,7 @@ function subscribeTransactions(){
   onSnapshot(q, (snap) => {
     state.transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     state.loading = false;
+    checkAutoBackup();
     render();
   }, (err) => {
     console.error(err);
@@ -208,6 +239,37 @@ function subscribeTransactions(){
     toast('Gagal memuat data. Cek Firestore Rules.','error');
     render();
   });
+}
+
+function checkAutoBackup(){
+  if(state.transactions.length === 0) return;
+  const last = Number(localStorage.getItem(BACKUP_KEY) || 0);
+  const now = Date.now();
+  const days = (now - last) / (1000*60*60*24);
+  if(!last || days >= BACKUP_INTERVAL_DAYS){
+    state.backupPrompt = true;
+  }
+}
+
+function monthlyRecap(){
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth()+1).padStart(2,'0');
+  const prefix = `${y}-${m}`;
+  const monthTx = state.transactions.filter(t => (t.transaction_date||'').startsWith(prefix));
+  const monthIn = monthTx.filter(t=>t.transaction_type==='cash_in').reduce((s,t)=>s+Number(t.amount||0),0);
+  const monthOut = monthTx.filter(t=>t.transaction_type==='cash_out').reduce((s,t)=>s+Number(t.amount||0),0);
+  const grouped = {};
+  monthTx.filter(t=>t.transaction_type==='cash_out').forEach(t => {
+    const key = (t.purpose||'Lainnya').trim() || 'Lainnya';
+    grouped[key] = grouped[key] || { name: key, total: 0, count: 0 };
+    grouped[key].total += Number(t.amount||0);
+    grouped[key].count += 1;
+  });
+  const top = Object.values(grouped).sort((a,b)=>b.total-a.total).slice(0,3);
+  const maxTotal = top[0]?.total || 1;
+  const monthLabel = now.toLocaleDateString('id-ID',{month:'long',year:'numeric'});
+  return { monthLabel, monthIn, monthOut, net: monthIn - monthOut, top, maxTotal, txCount: monthTx.length };
 }
 
 // ---------- CRUD ----------
@@ -288,6 +350,7 @@ function render(){
           <div class="stat-card income"><div class="stat-icon">↑</div><span>Total Cash In</span><strong data-testid="cash-in-total">${fmtRp(s.cashIn)}</strong></div>
           <div class="stat-card expense"><div class="stat-icon">↓</div><span>Total Cash Out</span><strong data-testid="cash-out-total">${fmtRp(s.cashOut)}</strong></div>
         </div>
+        ${renderMonthlyRecap()}
         <div class="section-heading">
           <h2>Riwayat</h2>
           <div class="section-actions">
@@ -324,6 +387,58 @@ function render(){
       ${state.modal==='add'?renderAddModal():''}
       ${state.modal==='export'?renderExportModal():''}
       ${state.modal==='import'?renderImportModal():''}
+      ${renderBackupBanner()}
+    </div>
+  `;
+}
+
+function renderMonthlyRecap(){
+  if(state.loading) return '';
+  const r = monthlyRecap();
+  if(r.txCount === 0) return '';
+  const netClass = r.net >= 0 ? 'up' : 'down';
+  const netSign = r.net >= 0 ? '+' : '−';
+  return `
+    <div class="recap-card" data-testid="monthly-recap-card">
+      <div class="recap-head">
+        <h3>Bulan Ini</h3>
+        <span class="month-label">${r.monthLabel} · ${r.txCount} transaksi</span>
+      </div>
+      <div class="recap-net">
+        <div>
+          <span>Net saldo bulan ini</span>
+          <strong class="${netClass}" data-testid="recap-net">${netSign} ${fmtRp(Math.abs(r.net))}</strong>
+        </div>
+        <div class="side">
+          Masuk <b class="up">${fmtRp(r.monthIn)}</b>
+          Keluar <b class="down">${fmtRp(r.monthOut)}</b>
+        </div>
+      </div>
+      ${r.top.length === 0 ? `
+        <div class="recap-empty">Belum ada pengeluaran bulan ini</div>
+      ` : `
+        <div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1.4px;margin-bottom:10px">Top ${r.top.length} pengeluaran</div>
+        <div class="recap-list">
+          ${r.top.map((p,i) => `
+            <div class="recap-row" data-testid="recap-top-item">
+              <div class="name">${i+1}. ${escapeHtml(p.name)}<em>${p.count}×</em></div>
+              <div class="amt">${fmtRp(p.total)}</div>
+              <div class="recap-bar"><span style="width:${Math.max(6, Math.round((p.total/r.maxTotal)*100))}%"></span></div>
+            </div>
+          `).join('')}
+        </div>
+      `}
+    </div>
+  `;
+}
+
+function renderBackupBanner(){
+  if(!state.backupPrompt) return '';
+  return `
+    <div class="backup-banner" data-testid="backup-banner">
+      <div class="msg"><b>Backup mingguan siap</b>Lebih dari 7 hari sejak backup terakhir</div>
+      <button data-testid="backup-download" onclick="window.__kf.runAutoBackup()">Unduh</button>
+      <button class="dismiss" onclick="window.__kf.dismissBackup()" aria-label="Tutup">×</button>
     </div>
   `;
 }
@@ -527,7 +642,20 @@ window.__kf = {
     const a = document.createElement('a'); a.href = url; a.download = `kasflow-backup-${todayISO()}.json`; a.click();
     URL.revokeObjectURL(url);
     toast(`Backup ${payload.transactions.length} transaksi terunduh`);
+    localStorage.setItem(BACKUP_KEY, String(Date.now()));
+    state.backupPrompt = false;
     state.modal = null; render();
+  },
+  runAutoBackup(){
+    window.__kf.exportJSON();
+  },
+  dismissBackup(){
+    // Snooze 24 hours by setting lastBackupAt to (now - 6 days)
+    const snooze = Date.now() - (BACKUP_INTERVAL_DAYS - 1) * 24 * 60 * 60 * 1000;
+    localStorage.setItem(BACKUP_KEY, String(snooze));
+    state.backupPrompt = false;
+    toast('Diingatkan lagi besok');
+    render();
   },
   async doImport(e){
     e.preventDefault();

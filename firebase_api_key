@@ -1,0 +1,10 @@
+firebase api key
+{
+  apiKey: "AIzaSyA04D495tyDEGvPXS6jRa7cuWfAWgMUgDU",
+  authDomain: "kasflow-b48bf.firebaseapp.com",
+  projectId: "kasflow-b48bf",
+  storageBucket: "kasflow-b48bf.firebasestorage.app",
+  messagingSenderId: "828468481670",
+  appId: "1:828468481670:web:0d55e69658547955658b07",
+  measurementId: "G-9H0MG55Y1R"
+};

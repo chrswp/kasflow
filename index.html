@@ -175,6 +175,28 @@ const state = {
 const BACKUP_KEY = 'kasflow.lastBackupAt';
 const BACKUP_INTERVAL_DAYS = 7;
 
+const ALLOWED_EVIDENCE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/bmp', 'image/x-ms-bmp'];
+const ALLOWED_EVIDENCE_EXTS = ['jpg', 'jpeg', 'png', 'bmp'];
+const MAX_EVIDENCE_BYTES = 500 * 1024; // 500 KB
+const UPLOAD_TIMEOUT_MS = 45000;
+
+function validateEvidence(file){
+  if(!file) return null;
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const typeOk = ALLOWED_EVIDENCE_TYPES.includes(file.type) || ALLOWED_EVIDENCE_EXTS.includes(ext);
+  if(!typeOk) return 'Format bukti harus JPG, JPEG, PNG, atau BMP';
+  if(file.size > MAX_EVIDENCE_BYTES) return `Ukuran bukti maksimal 500 KB (file Anda ${Math.round(file.size/1024)} KB)`;
+  return null;
+}
+
+function withTimeout(promise, ms, label){
+  let t;
+  const timeout = new Promise((_, reject) => {
+    t = setTimeout(() => reject(new Error(`${label} melebihi ${Math.round(ms/1000)} detik. Cek koneksi & Firebase Storage rules.`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
+}
+
 // ---------- CONFIG (localStorage) ----------
 const CONFIG_KEY = 'kasflow.firebase.config';
 function getFirebaseConfig(){
@@ -278,11 +300,23 @@ function monthlyRecap(){
 async function addTransaction(payload, file){
   let evidence_url = null, evidence_path = null;
   if(file){
+    const err = validateEvidence(file);
+    if(err) throw new Error(err);
     const path = `users/${state.user.uid}/evidence/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
     const r = storageRef(state.storage, path);
-    await uploadBytes(r, file, { contentType: file.type });
-    evidence_url = await getDownloadURL(r);
-    evidence_path = path;
+    try{
+      await withTimeout(uploadBytes(r, file, { contentType: file.type || 'image/jpeg' }), UPLOAD_TIMEOUT_MS, 'Upload bukti');
+      evidence_url = await withTimeout(getDownloadURL(r), 15000, 'Ambil URL bukti');
+      evidence_path = path;
+    } catch(uploadErr){
+      const code = uploadErr.code || '';
+      let msg = uploadErr.message || 'Upload gagal';
+      if(code === 'storage/unauthorized') msg = 'Storage Rules tolak upload. Cek Rules & Storage aktif.';
+      else if(code === 'storage/canceled') msg = 'Upload dibatalkan.';
+      else if(code === 'storage/unknown') msg = 'Storage error tidak dikenal. Cek koneksi & bucket config.';
+      else if(code === 'storage/retry-limit-exceeded') msg = 'Upload timeout. Cek koneksi internet.';
+      throw new Error(msg);
+    }
   }
   await addDoc(collection(state.db, `users/${state.user.uid}/transactions`), {
     ...payload,
@@ -485,8 +519,8 @@ function renderAddModal(){
           </div>
         ` : `
           <label class="upload-label" id="lbl-upload">
-            <span>📎</span> <span id="upload-text">Lampirkan bukti (opsional)</span>
-            <input type="file" id="f-file" accept="image/*,application/pdf" onchange="window.__kf.previewFile()" data-testid="input-evidence" />
+            <span>📎</span> <span id="upload-text">Lampirkan bukti (JPG/PNG/BMP, max 500 KB)</span>
+            <input type="file" id="f-file" accept=".jpg,.jpeg,.png,.bmp,image/jpeg,image/png,image/bmp" onchange="window.__kf.previewFile()" data-testid="input-evidence" />
             <small id="upload-size"></small>
           </label>
         `}
@@ -618,15 +652,30 @@ window.__kf = {
     else { outB.classList.add('selected','out'); inB.classList.remove('selected','in'); }
   },
   previewFile(){
-    const f = document.getElementById('f-file').files[0];
-    document.getElementById('upload-text').textContent = f ? f.name : 'Lampirkan bukti (opsional)';
-    document.getElementById('upload-size').textContent = f ? `${Math.round(f.size/1024)} KB` : '';
+    const el = document.getElementById('f-file');
+    const f = el.files[0];
+    if(!f){
+      document.getElementById('upload-text').textContent = 'Lampirkan bukti (JPG/PNG/BMP, max 500 KB)';
+      document.getElementById('upload-size').textContent = '';
+      return;
+    }
+    const err = validateEvidence(f);
+    if(err){
+      toast(err, 'error');
+      el.value = '';
+      document.getElementById('upload-text').textContent = 'Lampirkan bukti (JPG/PNG/BMP, max 500 KB)';
+      document.getElementById('upload-size').textContent = '';
+      return;
+    }
+    document.getElementById('upload-text').textContent = f.name;
+    document.getElementById('upload-size').textContent = `${Math.round(f.size/1024)} KB`;
   },
   async submitAdd(e){
     e.preventDefault();
     const isEdit = state.modal === 'edit' && state.editing;
     const btn = document.getElementById('save-btn');
-    btn.disabled = true; btn.textContent = isEdit ? 'Menyimpan...' : 'Menyimpan...';
+    const resetBtn = () => { btn.disabled = false; btn.textContent = isEdit?'Simpan perubahan':'Simpan transaksi'; };
+    btn.disabled = true; btn.textContent = 'Menyimpan...';
     const payload = {
       transaction_type: document.getElementById('f-type').value,
       amount: document.getElementById('f-amount').value,
@@ -641,15 +690,18 @@ window.__kf = {
       } else {
         const fileEl = document.getElementById('f-file');
         const file = fileEl && fileEl.files[0] || null;
-        if(file && file.size > 10*1024*1024){ toast('Ukuran file maksimal 10 MB','error'); btn.disabled=false; btn.textContent='Simpan transaksi'; return; }
+        if(file){
+          const vErr = validateEvidence(file);
+          if(vErr){ toast(vErr,'error'); resetBtn(); return; }
+        }
         await addTransaction(payload, file);
         toast('Transaksi tersimpan');
       }
       state.modal = null; state.editing = null; render();
     }catch(err){
       console.error(err);
-      toast('Gagal menyimpan: '+err.message,'error');
-      btn.disabled = false; btn.textContent = isEdit?'Simpan perubahan':'Simpan transaksi';
+      toast('Gagal menyimpan: '+(err.message||'error tidak diketahui'),'error');
+      resetBtn();
     }
   },
   async remove(item){ try{ await removeTransaction(item); }catch(err){ toast('Gagal hapus: '+err.message,'error'); } },
